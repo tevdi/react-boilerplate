@@ -1,11 +1,7 @@
-import React from 'react'
+import React from 'react';
 
 function FuncComp() {
-  return (
-    <div>
-      Functional Component
-    </div>
-  )
+  return <div>Functional Component</div>;
 }
-  
-export default FuncComp
+
+export default FuncComp;

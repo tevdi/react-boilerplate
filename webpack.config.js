@@ -1,133 +1,179 @@
-var path = require('path');
-var webpack = require('webpack');
-var HtmlWebpackPlugin = require('html-webpack-plugin');
+/* eslint-disable @typescript-eslint/no-var-requires */
+const path = require('path');
+const webpack = require('webpack');
+const CopyPlugin = require('copy-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
 const { BaseHrefWebpackPlugin } = require('base-href-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin')
-const CopyPlugin = require('copy-webpack-plugin');
-const TerserPlugin = require('terser-webpack-plugin');
 
-module.exports = ( env, argv ) => {
-    
-/* In case of required dynamic basename for development in local: 
-
-    npm run local -- --directory='/dynamic/directory/'
-    
-*/
-
-let basename;
-const api_rest_folder = 'http://localhost:8000'                                                   // No need to use API Rest folder if there isn't.
-let api_rest_basename = api_rest_folder
-if (argv.domain){
-    if (argv.directory){
-        basename = argv.directory
-    } else {
-        // basename = __dirname.substring(__dirname.lastIndexOf("/")+1);
-        // basename = '/'+basename+'/dist/';
-        basename = __dirname.replace('/var/www', '')+'/dist/'                                     // The root of Apache must be /var/www
-    }
-} else {
-    basename = '/'
-    api_rest_basename = ''
-}    
-console.log('The Api REST basename is : '+basename)
-
-return({
+module.exports = (env, argv) => {
+  const basename = !argv.mode ? __dirname.replace('/var/www', '') + '/dist' : ''; // The root of Apache must be /var/www
+  return {
+    entry: {
+      main: path.join(__dirname, 'src/index.tsx'),
+    },
     output: {
-        path: path.resolve(__dirname, 'dist'),
-        filename: '[hash].js',
+      path: path.resolve(__dirname, 'dist'),
+      publicPath: `${basename}/`,
+      filename: '[hash].js',
     },
     module: {
-        rules: [
+      rules: [
         {
-            test: /\.(js|jsx)$/,
-            exclude: /node_modules/,
-            use: {
-            loader: "babel-loader"
-            }
+          test: /\.(js|jsx)$/,
+          exclude: /node_modules/,
+          use: {
+            loader: 'babel-loader',
+            options: {
+              presets: [
+                '@babel/preset-env',
+                '@babel/react',
+                {
+                  plugins: ['@babel/plugin-proposal-class-properties'],
+                },
+              ],
+            },
+          },
         },
         {
-            test: /\.html$/,
-            use: [
+          test: /\.html$/,
+          use: [
             {
-                loader: "html-loader"
-            }
-            ]
+              loader: 'html-loader',
+            },
+          ],
         },
         {
-            test: /\.css$/,
-            use: [
+          test: /\.module\.(scss|sass)$/,
+          use: [
             'style-loader',
-            'css-loader'
-            ]
+            {
+              loader: 'css-loader',
+              options: {
+                modules: true,
+                importLoaders: 1,
+              },
+            },
+            'postcss-loader',
+          ],
         },
         {
-            test: /\.s(a|c)ss$/,
-            exclude: /\.module.(s(a|c)ss)$/,
-            loader: [MiniCssExtractPlugin.loader,
+          test: /\.css$/,
+          use: [MiniCssExtractPlugin.loader, 'css-loader'],
+        },
+        {
+          test: /\.s[ac]ss$/i,
+          exclude: /\.module.(s(a|c)ss)$/,
+          use: [
+            // Creates `style` nodes from JS strings
+            'style-loader',
+            // Translates CSS into CommonJS
+            'css-loader',
+            // Compiles Sass to CSS
+            'sass-loader',
+          ],
+        },
+        {
+          test: /\.s(a|c)ss$/,
+          exclude: /\.module.(s(a|c)ss)$/,
+          loader: [
+            MiniCssExtractPlugin.loader,
             {
-                loader: 'css-loader',
+              loader: 'css-loader',
             },
             {
-                loader: 'sass-loader',
-            }
-            ]
+              loader: 'sass-loader',
+            },
+          ],
         },
         {
-            test: /\.tsx?$/,
-            use: 'ts-loader',
-            exclude: /node_modules/,
-        },       
-        ]
+          test: /\.tsx?$/,
+          loader: 'babel-loader!ts-loader',
+          exclude: /node_modules/,
+        },
+        {
+          test: /\.(eot|ttf|otf|svg|png|jpg|gif|woff|woff2)$/,
+          use: {
+            loader: 'url-loader',
+            options: {
+              limit: 100000,
+              name: '[name].[ext]',
+            },
+          },
+        },
+      ],
     },
     plugins: [
-        ...(argv.mode == 'production' ? [new CleanWebpackPlugin()] : []),
-        new HtmlWebpackPlugin({ template: './src/index.html' }),
-        new BaseHrefWebpackPlugin({ baseHref: basename }),
-        new webpack.DefinePlugin({
+      ...(!argv.mode || argv.mode === 'production' ? [new CleanWebpackPlugin()] : []),
+      new HtmlWebpackPlugin({ template: './src/index.html' }),
+      // new BaseHrefWebpackPlugin({ baseHref: basename }),
+      new webpack.DefinePlugin({
         process: {
-            env: {
-                ROUTER_BASENAME: JSON.stringify(basename),
-                API_REST_BASENAME: JSON.stringify(api_rest_basename)
-            }
-        }
-        }),
-        new CopyPlugin([
+          env: {
+            BASENAME: JSON.stringify(basename),
+            APP_PUBLIC_URL: JSON.stringify(basename),
+            // IS_LOCAL: true
+          },
+        },
+      }),
+      new webpack.ProvidePlugin({
+        $: 'jquery',
+        jQuery: 'jquery',
+      }),
+      new CopyPlugin([
         {
-            from: 'src/*.json',
-            flatten: true,
+          from: 'public/*.json',
+          flatten: true,
         },
         {
-            from: 'src/*.ico',
-            flatten: true,              
+          from: 'public/*.ico',
+          flatten: true,
         },
         {
-            from: 'img/',
-            to: 'img/',
-            flatten: true,              
+          from: 'public/img/',
+          to: 'img/',
         },
         {
-            from: 'src/htaccess',                                                                 // It requires AllowOverride All for that directory in Apache config (apache2.conf)
-            to: '.htaccess',
-            toType: 'template',
+          from: 'public/htaccess', // It requires AllowOverride All for that directory in Apache config (apache2.conf)
+          to: '.htaccess',
+          toType: 'template',
         },
-        ]),
-        new MiniCssExtractPlugin({
-            filename: '[hash].css',
-            chunkFilename: '[hash].css'
-        }),
+      ]),
+      new MiniCssExtractPlugin({
+        filename: '[hash].css',
+        chunkFilename: '[hash].css',
+      }),
     ],
     devServer: {
-        host: 'localhost',
-        port: 8080,
-        historyApiFallback: true,
+      host: 'localhost',
+      port: 3000,
+      historyApiFallback: true,
+      disableHostCheck: true,
+      /* proxy: {
+        "/rest/**": {
+          target: "http://localhost:8080",
+        },
+      }, */
     },
     resolve: {
-        extensions: [ '.tsx', '.ts', '.js' ],
+      extensions: ['.tsx', '.ts', '.js'],
+      // eslint-disable-next-line no-path-concat
+      modules: [path.resolve(__dirname + '/src'), path.resolve(__dirname + '/node_modules')],
     },
-    optimization: {
-        minimize: true,
-        minimizer: [new TerserPlugin()],
-    },
-})
-}
+    /* optimization: {
+      minimize: true,
+      minimizer: [
+        new TerserPlugin({  // This plugin makes slow the process of WebPack compilation / recompilation.
+          cache: false,
+          terserOptions: {
+            // No rename components names
+            keep_classnames: true,
+            keep_fnames: true,
+          },
+        }),
+      ],
+    }, */
+  };
+};

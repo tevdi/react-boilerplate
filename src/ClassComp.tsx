@@ -1,22 +1,16 @@
-import React from 'react'
+import React from 'react';
 
 class ClassComp extends React.Component<any> {
-  constructor(props: any){
+  constructor(props: any) {
     super(props);
-      this.state = {
-    }
-  }
-  
-  componentDidMount(){
+    this.state = {};
   }
 
+  componentDidMount() {}
+
   render() {
-    return (
-    <div>
-      Class Component
-    </div>
-    )
+    return <div>Class Component</div>;
   }
 }
 
-export default ClassComp
+export default ClassComp;
