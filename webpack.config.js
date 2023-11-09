@@ -60,10 +60,6 @@ module.exports = (env, argv) => {
           ],
         },
         {
-          test: /\.css$/,
-          use: [MiniCssExtractPlugin.loader, 'css-loader'],
-        },
-        {
           test: /\.s[ac]ss$/i,
           exclude: /\.module.(s(a|c)ss)$/,
           use: [
@@ -76,21 +72,13 @@ module.exports = (env, argv) => {
           ],
         },
         {
-          test: /\.s(a|c)ss$/,
-          exclude: /\.module.(s(a|c)ss)$/,
-          loader: [
-            MiniCssExtractPlugin.loader,
-            {
-              loader: 'css-loader',
-            },
-            {
-              loader: 'sass-loader',
-            },
-          ],
+          test: /\.tsx?$/,
+          use: 'babel-loader',
+          exclude: /node_modules/,
         },
         {
           test: /\.tsx?$/,
-          loader: 'babel-loader!ts-loader',
+          use: 'ts-loader',
           exclude: /node_modules/,
         },
         {
@@ -107,7 +95,10 @@ module.exports = (env, argv) => {
     },
     plugins: [
       ...(!argv.mode || argv.mode === 'production' ? [new CleanWebpackPlugin()] : []),
-      new HtmlWebpackPlugin({ template: './src/index.html' }),
+      new HtmlWebpackPlugin({
+        template: './src/index.html',
+        favicon: 'public/favicon.ico',
+      }),
       // new BaseHrefWebpackPlugin({ baseHref: basename }),
       new webpack.DefinePlugin({
         process: {
@@ -122,25 +113,15 @@ module.exports = (env, argv) => {
         $: 'jquery',
         jQuery: 'jquery',
       }),
-      new CopyPlugin([
-        {
-          from: 'public/*.json',
-          flatten: true,
-        },
-        {
-          from: 'public/*.ico',
-          flatten: true,
-        },
-        {
-          from: 'public/img/',
-          to: 'img/',
-        },
-        {
-          from: 'public/htaccess', // It requires AllowOverride All for that directory in Apache config (apache2.conf)
-          to: '.htaccess',
-          toType: 'template',
-        },
-      ]),
+      new CopyPlugin({
+        patterns: [
+          {
+            from: 'public/htaccess', // It requires AllowOverride All for that directory in Apache config (apache2.conf)
+            to: '.htaccess',
+            toType: 'template',
+          },
+        ],
+      }),
       new MiniCssExtractPlugin({
         filename: '[hash].css',
         chunkFilename: '[hash].css',
@@ -150,7 +131,7 @@ module.exports = (env, argv) => {
       host: 'localhost',
       port: 3000,
       historyApiFallback: true,
-      disableHostCheck: true,
+      allowedHosts: 'all',
       /* proxy: {
         "/rest/**": {
           target: "http://localhost:8080",
@@ -175,5 +156,6 @@ module.exports = (env, argv) => {
         }),
       ],
     }, */
+    devtool: 'source-map',
   };
 };
